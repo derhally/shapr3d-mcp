@@ -1,7 +1,7 @@
 [project]
 name = "shapr3d-mcp"
 version = "0.1.0"
-description = "MCP server for CAD modeling with build123d and Shapr3D via STEP file exchange"
+description = "MCP server for CAD modeling with build123d, exchanging STEP files with CAD apps such as Shapr3D"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -11,7 +11,7 @@ authors = [
 keywords = ["mcp", "cad", "shapr3d", "build123d", "step", "opencascade"]
 classifiers = [
     "Programming Language :: Python :: 3.13",
-    "Operating System :: MacOS",
+    "Operating System :: OS Independent",
     "Operating System :: Microsoft :: Windows",
     "Topic :: Multimedia :: Graphics :: 3D Modeling",
 ]

@@ -1,6 +1,6 @@
 """Tests for the Shapr3D MCP server.
 
-These exercise the tool functions directly (no MCP transport, no Shapr3D
+These exercise the tool functions directly (no MCP transport, no CAD
 app). The workspace is a temp directory set up in conftest.py.
 """
 
@@ -233,14 +233,3 @@ def test_list_models_skips_broken_symlinks_and_dirs():
     finally:
         (WORKDIR / "ghost.step").unlink()
         (WORKDIR / "folder.step").rmdir()
-
-
-# ---------------------------------------------------------------------------
-# app bridge (runs without Shapr3D installed)
-# ---------------------------------------------------------------------------
-
-def test_shapr3d_status_reports_without_failing():
-    status = server.shapr3d_status()
-    assert isinstance(status["installed"], bool)
-    assert isinstance(status["running"], bool)
-    assert status["workspace"] == str(WORKDIR)

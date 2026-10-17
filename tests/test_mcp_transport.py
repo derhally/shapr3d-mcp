@@ -19,8 +19,7 @@ WORKDIR = Path(os.environ["SHAPR3D_MCP_WORKDIR"])
 
 EXPECTED_TOOLS = {
     "create_model", "modify_model", "inspect_model", "convert_model",
-    "render_preview", "list_models", "open_in_shapr3d", "shapr3d_status",
-    "activate_shapr3d", "screenshot_shapr3d", "build123d_guide",
+    "render_preview", "list_models", "detect_clash", "build123d_guide",
 }
 
 
@@ -51,7 +50,10 @@ def test_tools_over_real_stdio_transport():
                 await session.initialize()
 
                 tools = await session.list_tools()
-                assert EXPECTED_TOOLS <= {t.name for t in tools.tools}
+                names = {t.name for t in tools.tools}
+                assert EXPECTED_TOOLS <= names
+                # Nothing may launch, focus or capture a desktop app.
+                assert not {n for n in names if "shapr3d" in n}
 
                 # IGES first, before any export has run in the server
                 # process: OCCT reader chatter on stdout would kill the

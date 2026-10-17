@@ -1,28 +1,27 @@
 # Shapr3D MCP Server
 
-An MCP server that lets AI assistants (Claude, etc.) model real CAD parts and
-work with [Shapr3D](https://www.shapr3d.com/).
+An MCP server that lets AI assistants (Claude, etc.) model real CAD parts in
+code and exchange them as STEP files with CAD apps such as
+[Shapr3D](https://www.shapr3d.com/).
 
 ## How it works
 
-Shapr3D has **no public API or scripting interface** (it's a
-[long-standing community request](https://discourse.shapr3d.com/t/mcp-api/37502)).
-So this server takes the only robust route:
+Models are built programmatically with
+[build123d](https://build123d.readthedocs.io/) on the OpenCascade B-rep
+kernel (exact solids, not meshes) and exported as STEP, STL, 3MF and more.
+Existing STEP/IGES/STL/BREP/3MF files can be inspected, modified,
+clash-checked and converted.
 
-1. **Real CAD kernel inside the server.** Models are built programmatically
-   with [build123d](https://build123d.readthedocs.io/) on the OpenCascade
-   B-rep kernel — the same class of geometry Shapr3D uses (Parasolid-like
-   solids, not meshes).
-2. **STEP file exchange.** Generated models export as STEP, which Shapr3D
-   imports as fully **editable solid bodies**. Files you export *from*
-   Shapr3D (STEP/IGES/STL) can be inspected, modified, and converted.
-3. **App bridge (macOS and Windows).** Tools to launch Shapr3D, open files
-   in it, check its state, and screenshot its window for visual feedback.
+The server does **not** launch, control or screenshot Shapr3D or any other
+desktop app. Shapr3D has no public API or scripting interface, and on
+Windows it won't even accept STEP files from other programs, so an app
+bridge only got in the way. To review a model in Shapr3D, import the
+exported STEP file yourself; it comes in as editable solid bodies.
 
 ```
-AI assistant ──MCP──▶ this server ──build123d/OCCT──▶ model.step ──▶ Shapr3D
-                          ▲                                            │
-                          └────────── STEP/STL export from app ◀───────┘
+AI assistant ──MCP──▶ this server ──build123d/OCCT──▶ model.step ──▶ you import it in Shapr3D
+                          ▲                                                    │
+                          └──────────── STEP/STL you export from the app ◀─────┘
 ```
 
 ## Tools
@@ -30,21 +29,18 @@ AI assistant ──MCP──▶ this server ──build123d/OCCT──▶ model.
 | Tool | Purpose |
 |---|---|
 | `create_model` | Build a model from a build123d script (optionally fed by a shared `params_file`), export STEP/STL/3MF/glTF/GLB/BREP |
-| `modify_model` | Import an existing file (e.g. Shapr3D STEP export), edit it in code, re-export |
+| `modify_model` | Import an existing file (e.g. a STEP exported from Shapr3D), edit it in code, re-export |
 | `detect_clash` | Pairwise interference check between solids (assembly/keep-out verification) |
 | `inspect_model` | Solids, bounding box, volume, face/edge counts of a STEP/IGES/STL/BREP/3MF file |
 | `convert_model` | Read STEP / IGES / STL / BREP / 3MF, write STEP / STL / 3MF / glTF / GLB / BREP |
-| `render_preview` | Shaded isometric PNG preview without opening any app |
+| `render_preview` | Rough shaded isometric PNG preview |
 | `list_models` | List files in the models workspace |
-| `open_in_shapr3d` | Open a file in Shapr3D (STEP imports as editable bodies) |
-| `activate_shapr3d` / `shapr3d_status` | Launch / check the app |
-| `screenshot_shapr3d` | Capture the Shapr3D window |
 | `build123d_guide` | Modeling syntax cheat sheet for the AI |
 
 ## Setup
 
-Requires macOS or Windows, [uv](https://docs.astral.sh/uv/), and Shapr3D
-installed (on Windows, the Microsoft Store version).
+Requires [uv](https://docs.astral.sh/uv/). Shapr3D (or another CAD app) is
+optional, for reviewing the exported files.
 
 ```sh
 uv sync
@@ -80,25 +76,15 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`
 1. Ask the AI to model something ("design a wall bracket for a 2-inch pipe,
    4 mounting holes for M5 bolts").
 2. It writes a build123d script via `create_model`, checks it with
-   `render_preview`, and opens the STEP in Shapr3D via `open_in_shapr3d`.
-3. You confirm the Import Preferences dialog in Shapr3D (Quality is fine;
-   STEP carries mm units) and edit freely — the bodies are native,
-   editable solids.
+   `inspect_model` and `render_preview`, and tells you where the STEP file is.
+3. Import that STEP into Shapr3D (STEP carries mm units) and review or edit
+   it there; the bodies are native, editable solids.
 4. To AI-edit an existing design: export STEP from Shapr3D, then ask the AI
    to `inspect_model` / `modify_model` it.
 
 Generated files live in `models/` (override with `SHAPR3D_MCP_WORKDIR`).
 
 ### Windows notes
-
-Shapr3D for Windows is a Store app, which only accepts `.shapr` files from
-other programs. For STEP and the other formats, `open_in_shapr3d`
-launches or activates Shapr3D and copies the file's full path to the
-clipboard. Choose **Import** in Shapr3D and paste the path into the file
-picker, or drag the file onto the Shapr3D window.
-
-`screenshot_shapr3d` captures the Shapr3D window even when other windows
-cover it, but not while it is minimized.
 
 The server loads its CAD and plotting libraries at startup (a few seconds)
 rather than on first use. On Windows, loading those native libraries
@@ -110,8 +96,8 @@ while the MCP stdio transport is reading stdin deadlocks the process.
 uv run pytest
 ```
 
-The suite exercises the modeling tools directly (no MCP transport, no
-Shapr3D app needed) in a throwaway workspace.
+The suite exercises the modeling tools directly (no MCP transport, no CAD
+app needed) in a throwaway workspace.
 
 ## Limitations
 
@@ -120,10 +106,8 @@ Shapr3D app needed) in a throwaway workspace.
 - Parametric history doesn't survive the round-trip (a STEP file is the
   final solid, not the feature tree). Shapr3D's direct-modeling tools work
   on imported solids regardless.
-- In-app actions (sketching, export) happen via the user or OS-level
-  computer-use automation; there is no app API to drive.
-- On Windows, non-`.shapr` files can't be pushed into Shapr3D
-  programmatically; the user finishes the import (see Windows notes).
+- Importing into and exporting from Shapr3D is done by hand; the server
+  never touches the app.
 
 ## License
 
